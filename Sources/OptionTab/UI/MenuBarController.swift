@@ -4,7 +4,7 @@ import ServiceManagement
 
 /// Manages the menu bar status item and its menu.
 @MainActor
-final class MenuBarController {
+final class MenuBarController: NSObject {
     private var statusItem: NSStatusItem!
     private var hotkeyManager: HotkeyManager?
 
@@ -19,6 +19,7 @@ final class MenuBarController {
         }
 
         let menu = NSMenu()
+        menu.autoenablesItems = false
 
         // Shortcut display
         let shortcutItem = NSMenuItem(
@@ -37,6 +38,8 @@ final class MenuBarController {
             action: #selector(changeShortcut),
             keyEquivalent: ""
         )
+        changeShortcutItem.target = self
+        changeShortcutItem.isEnabled = true
         menu.addItem(changeShortcutItem)
 
         menu.addItem(NSMenuItem.separator())
@@ -47,6 +50,8 @@ final class MenuBarController {
             action: #selector(toggleStartAtLogin),
             keyEquivalent: ""
         )
+        startAtLoginItem.target = self
+        startAtLoginItem.isEnabled = true
         startAtLoginItem.state = isStartAtLoginEnabled() ? .on : .off
         menu.addItem(startAtLoginItem)
 
@@ -58,6 +63,8 @@ final class MenuBarController {
             action: #selector(quit),
             keyEquivalent: "q"
         )
+        quitItem.target = self
+        quitItem.isEnabled = true
         menu.addItem(quitItem)
 
         statusItem.menu = menu

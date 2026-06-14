@@ -7,10 +7,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkeyManager: HotkeyManager?
     private var mruTracker: MRUTracker?
     private var switcherPanel: SwitcherPanel?
+    private let windowEnumerator = WindowEnumerator()
+    private var accessibilityTimer: Timer?
+    private var focusTrackerRef: FocusTracker?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Check Accessibility permission
-        ensureAccessibility()
+        NSLog("[OptionTab] App launched")
 
         // Initialize core components
         let tracker = MRUTracker()
@@ -36,39 +38,74 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.switcherPanel?.cycleNext()
             }
         }
-        hotkey.onDeactivate = { [weak self] selectedWindow in
+        hotkey.onDeactivate = { [weak self] _ in
             Task { @MainActor in
-                self?.activateWindow(selectedWindow)
+                let selected = self?.switcherPanel?.selectedWindow
+                self?.activateWindow(selected)
             }
         }
 
-        // Start focus tracking
+        // Start focus tracking — hold a reference so it stays alive
         let focusTracker = FocusTracker(tracker: tracker)
         focusTracker.start()
+        focusTrackerRef = focusTracker
 
         // Start menu bar
         menuBar.setup(hotkeyManager: hotkey)
 
-        // Start hotkey
-        hotkey.start()
+        // Prompt for Accessibility permission, then start hotkey when granted
+        startAccessibilityPolling()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        accessibilityTimer?.invalidate()
         hotkeyManager?.stop()
     }
 
-    private func ensureAccessibility() {
-        let trusted = AccessibilityHelper.checkPermission()
-        if !trusted {
-            // System will prompt for Accessibility permission
-            // App continues in degraded mode (on-screen windows only)
+    /// Prompt for Accessibility and keep checking every second until granted.
+    /// CGEvent tap creation requires Accessibility to already be granted.
+    private func startAccessibilityPolling() {
+        let alreadyTrusted = AccessibilityHelper.checkPermission(prompt: true)
+        NSLog("[OptionTab] Accessibility trusted: %@", alreadyTrusted ? "YES" : "NO")
+
+        if alreadyTrusted {
+            hotkeyManager?.start()
+            NSLog("[OptionTab] Hotkey manager started immediately")
+            return
+        }
+
+        // Poll until the user grants permission
+        accessibilityTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                if AccessibilityHelper.isAccessibilityGranted {
+                    self?.accessibilityTimer?.invalidate()
+                    self?.accessibilityTimer = nil
+                    self?.hotkeyManager?.start()
+                    NSLog("[OptionTab] Accessibility granted — hotkey manager started")
+                }
+            }
         }
     }
 
     private func showSwitcher() {
-        guard let tracker = mruTracker else { return }
-        let windows = tracker.sortedWindows()
-        switcherPanel?.show(with: windows)
+        // Enumerate live windows first, then sort by MRU order
+        windowEnumerator.enumerate { [weak self] liveWindows in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let mruOrder = self.mruTracker?.sortedWindows() ?? []
+
+                // Sort live windows by MRU: windows seen in tracker come first (by their tracked order),
+                // new windows (not yet tracked) are appended at the end.
+                let mruIDs = mruOrder.map(\.id)
+                let sorted = liveWindows.sorted { a, b in
+                    let ai = mruIDs.firstIndex(of: a.id) ?? Int.max
+                    let bi = mruIDs.firstIndex(of: b.id) ?? Int.max
+                    return ai < bi
+                }
+
+                self.switcherPanel?.show(with: sorted)
+            }
+        }
     }
 
     private func activateWindow(_ window: WindowItem?) {

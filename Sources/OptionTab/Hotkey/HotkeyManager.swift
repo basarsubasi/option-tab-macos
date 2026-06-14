@@ -98,13 +98,21 @@ final class HotkeyManager: @unchecked Sendable {
 
     /// Start listening for the global shortcut.
     func start() {
-        // Ensure Accessibility permission
-        guard AccessibilityHelper.isAccessibilityGranted else {
-            // Cannot install event tap without Accessibility permission
-            // The app should prompt for permission in AppDelegate
+        NSLog("[OptionTab] HotkeyManager.start() called")
+
+        // Don't install twice
+        if eventTap != nil {
+            NSLog("[OptionTab] Event tap already installed, skipping")
             return
         }
 
+        // Ensure Accessibility permission
+        guard AccessibilityHelper.isAccessibilityGranted else {
+            NSLog("[OptionTab] Accessibility NOT granted, cannot install event tap")
+            return
+        }
+
+        NSLog("[OptionTab] Accessibility granted, installing event tap...")
         installEventTap()
     }
 
@@ -141,10 +149,11 @@ final class HotkeyManager: @unchecked Sendable {
             callback: hotkeyEventCallback,
             userInfo: context
         ) else {
-            // Event tap creation failed — likely no Accessibility permission
+            NSLog("[OptionTab] ❌ CGEvent.tapCreate FAILED — event tap could not be created")
             return
         }
 
+        NSLog("[OptionTab] ✅ Event tap created successfully")
         self.eventTap = tap
 
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
@@ -152,6 +161,7 @@ final class HotkeyManager: @unchecked Sendable {
 
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
+        NSLog("[OptionTab] Event tap enabled and added to run loop")
     }
 
     private func removeEventTap() {
@@ -162,6 +172,13 @@ final class HotkeyManager: @unchecked Sendable {
             }
             eventTap = nil
             runLoopSource = nil
+        }
+    }
+
+    /// Re-enable the event tap if macOS disabled it.
+    fileprivate func reEnableTap() {
+        if let tap = eventTap {
+            CGEvent.tapEnable(tap: tap, enable: true)
         }
     }
 }
@@ -182,6 +199,14 @@ private func hotkeyEventCallback(
 
     let manager = Unmanaged<HotkeyManager>.fromOpaque(userInfo).takeUnretainedValue()
 
+    // macOS can disable event taps if the callback is too slow or for other reasons.
+    // Re-enable the tap when that happens.
+    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        NSLog("[OptionTab] Event tap was disabled (type=%d), re-enabling...", type.rawValue)
+        manager.reEnableTap()
+        return Unmanaged.passUnretained(event)
+    }
+
     switch type {
     case .keyDown:
         let keyCode = UInt32(event.getIntegerValueField(.keyboardEventKeycode))
@@ -190,6 +215,7 @@ private func hotkeyEventCallback(
         if keyCode == manager.shortcut.keyCode && manager.hasRequiredModifier(flags) {
             if !manager.isActive {
                 manager.isActive = true
+                NSLog("[OptionTab] Shortcut detected — activating switcher")
                 manager.onActivate?()
             } else {
                 manager.onCycleNext?()
@@ -213,6 +239,7 @@ private func hotkeyEventCallback(
         if manager.isActive && !manager.hasRequiredModifier(flags) {
             manager.isActive = false
             manager.modifierPressed = false
+            NSLog("[OptionTab] Modifier released — deactivating switcher")
             manager.onDeactivate?(nil)
         }
 
@@ -234,8 +261,15 @@ private func hotkeyEventCallback(
 // MARK: - HotkeyManager Private Helpers
 
 extension HotkeyManager {
+    /// Convert the Shortcut's Carbon modifier flags to CGEventFlags for comparison
+    /// against CGEvent.flags. Carbon flags (e.g. optionKey=2048) are completely
+    /// different values from CGEventFlags (maskAlternate=524288).
     func hasRequiredModifier(_ flags: CGEventFlags) -> Bool {
-        let requiredFlag = CGEventFlags(rawValue: UInt64(shortcut.modifierFlags))
-        return flags.contains(requiredFlag)
+        var required: CGEventFlags = []
+        if shortcut.modifierFlags & UInt32(cmdKey)     != 0 { required.insert(.maskCommand) }
+        if shortcut.modifierFlags & UInt32(optionKey)  != 0 { required.insert(.maskAlternate) }
+        if shortcut.modifierFlags & UInt32(controlKey) != 0 { required.insert(.maskControl) }
+        if shortcut.modifierFlags & UInt32(shiftKey)   != 0 { required.insert(.maskShift) }
+        return flags.contains(required)
     }
 }
