@@ -6,10 +6,12 @@ final class SwitcherPanel: NSPanel {
     private var windows: [WindowItem] = []
     private var selectedIndex = 0
     private var iconViews: [NSImageView] = []
+    private var wrapperViews: [NSView] = [] // Track wrappers for highlighting
     private let mainStackView = NSStackView()
-    private let scrollView = NSScrollView()
-    private let iconStackView = NSStackView()
+    private let gridStackView = NSStackView() // Vertical stack for rows
     private let titleLabel = NSTextField(labelWithString: "")
+    
+    private let maxColumns = 8
 
     // Highlight configuration
     private let iconSize: CGFloat = 48
@@ -52,7 +54,7 @@ final class SwitcherPanel: NSPanel {
         guard !windows.isEmpty else {
             // Show empty state
             titleLabel.stringValue = "No windows"
-            iconStackView.subviews.forEach { $0.removeFromSuperview() }
+            gridStackView.subviews.forEach { $0.removeFromSuperview() }
             return
         }
 
@@ -61,12 +63,16 @@ final class SwitcherPanel: NSPanel {
         // Position centered on screen
         if let screen = NSScreen.main {
             let frame = screen.visibleFrame
-            // Calculate width, clamp to screen width minus padding
-            let desiredWidth = CGFloat(windows.count) * (iconSize + iconPadding * 2) + panelPadding * 2
-            let maxWidth = frame.width - 100
-            let panelWidth = min(maxWidth, max(300, desiredWidth))
             
-            let panelHeight = iconSize + iconPadding * 2 + panelPadding * 2 + 30 // Extra 30 for title label
+            let columns = min(windows.count, maxColumns)
+            let rows = Int(ceil(Double(windows.count) / Double(maxColumns)))
+            
+            let gridWidth = CGFloat(columns) * iconSize + CGFloat(max(0, columns - 1)) * iconPadding
+            let gridHeight = CGFloat(rows) * iconSize + CGFloat(max(0, rows - 1)) * iconPadding
+            
+            let panelWidth = max(300, gridWidth + panelPadding * 2)
+            let panelHeight = gridHeight + panelPadding * 2 + 30 // Extra 30 for title label
+            
             let x = frame.midX - panelWidth / 2
             let y = frame.midY - panelHeight / 2
             setFrame(NSRect(x: x, y: y, width: panelWidth, height: panelHeight), display: true)
@@ -116,29 +122,18 @@ final class SwitcherPanel: NSPanel {
             right: panelPadding
         )
 
-        iconStackView.orientation = .horizontal
-        iconStackView.alignment = .centerY
-        iconStackView.spacing = iconPadding
-
-        scrollView.hasVerticalScroller = false
-        scrollView.hasHorizontalScroller = false // Hidden but scrollable
-        scrollView.autohidesScrollers = true
-        scrollView.drawsBackground = false
-        scrollView.documentView = iconStackView
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        
-        // Ensure scrollView height is exactly the height of the icon stack
-        NSLayoutConstraint.activate([
-            scrollView.heightAnchor.constraint(equalToConstant: iconSize + iconPadding * 2)
-        ])
+        gridStackView.orientation = .vertical
+        gridStackView.alignment = .centerX
+        gridStackView.spacing = iconPadding
 
         titleLabel.textColor = .labelColor
         titleLabel.font = .systemFont(ofSize: 14, weight: .medium)
         titleLabel.alignment = .center
         titleLabel.lineBreakMode = .byTruncatingTail
         titleLabel.maximumNumberOfLines = 1
+        titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        mainStackView.addArrangedSubview(scrollView)
+        mainStackView.addArrangedSubview(gridStackView)
         mainStackView.addArrangedSubview(titleLabel)
 
         // Container with rounded background
@@ -163,8 +158,11 @@ final class SwitcherPanel: NSPanel {
     }
 
     private func rebuildIconViews() {
-        iconStackView.subviews.forEach { $0.removeFromSuperview() }
+        gridStackView.subviews.forEach { $0.removeFromSuperview() }
         iconViews = []
+        wrapperViews = []
+        
+        var currentHorizontalStack: NSStackView? = nil
 
         for window in windows {
             let icon = window.appIcon ?? NSImage(systemSymbolName: "app.dashed", accessibilityDescription: "Unknown app")!
@@ -184,9 +182,12 @@ final class SwitcherPanel: NSPanel {
             wrapper.wantsLayer = true
             wrapper.layer?.cornerRadius = 8
             wrapper.layer?.masksToBounds = true
+            wrapper.translatesAutoresizingMaskIntoConstraints = false
 
             wrapper.addSubview(imageView)
             NSLayoutConstraint.activate([
+                wrapper.widthAnchor.constraint(equalToConstant: iconSize + highlightBorderWidth * 2),
+                wrapper.heightAnchor.constraint(equalToConstant: iconSize + highlightBorderWidth * 2),
                 imageView.centerXAnchor.constraint(equalTo: wrapper.centerXAnchor),
                 imageView.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor),
                 imageView.widthAnchor.constraint(equalToConstant: iconSize),
@@ -197,23 +198,29 @@ final class SwitcherPanel: NSPanel {
             if window.isMinimized {
                imageView.contentTintColor = .secondaryLabelColor
             }
-
-            iconStackView.addArrangedSubview(wrapper)
+            
+            wrapperViews.append(wrapper)
             iconViews.append(imageView)
+            
+            if iconViews.count % maxColumns == 1 || maxColumns == 1 {
+                currentHorizontalStack = NSStackView()
+                currentHorizontalStack?.orientation = .horizontal
+                currentHorizontalStack?.alignment = .centerY
+                currentHorizontalStack?.spacing = iconPadding
+                gridStackView.addArrangedSubview(currentHorizontalStack!)
+            }
+            currentHorizontalStack?.addArrangedSubview(wrapper)
         }
     }
 
     private func updateHighlight() {
-        for (index, wrapper) in iconStackView.arrangedSubviews.enumerated() {
+        for (index, wrapper) in wrapperViews.enumerated() {
             guard index < iconViews.count else { break }
 
             if index == selectedIndex {
                 wrapper.layer?.borderColor = highlightColor.cgColor
                 wrapper.layer?.borderWidth = highlightBorderWidth
                 wrapper.layer?.backgroundColor = highlightColor.withAlphaComponent(0.1).cgColor
-                
-                // Ensure the selected icon is visible in the scroll view
-                wrapper.scrollToVisible(wrapper.bounds)
             } else {
                 wrapper.layer?.borderColor = NSColor.separatorColor.cgColor
                 wrapper.layer?.borderWidth = 1
