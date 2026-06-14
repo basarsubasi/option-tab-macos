@@ -35,6 +35,9 @@ mkdir -p "${APP_NAME}.app/Contents/Resources"
 
 cp .build/release/${APP_NAME} "${APP_NAME}.app/Contents/MacOS/"
 cp Sources/${APP_NAME}/Resources/Info.plist "${APP_NAME}.app/Contents/"
+if [ -f "Sources/${APP_NAME}/Resources/AppIcon.icns" ]; then
+    cp "Sources/${APP_NAME}/Resources/AppIcon.icns" "${APP_NAME}.app/Contents/Resources/"
+fi
 
 echo "🔏 Ad-hoc Code signing..."
 codesign --force --deep --sign - "${APP_NAME}.app"
