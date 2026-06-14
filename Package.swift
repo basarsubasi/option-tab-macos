@@ -14,9 +14,18 @@ let package = Package(
             name: "OptionTab",
             dependencies: [],
             path: "Sources/OptionTab",
+            exclude: ["Resources/Info.plist"],
             resources: [],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
+            ],
+            linkerSettings: [
+                .unsafeFlags([
+                    "-Xlinker", "-sectcreate",
+                    "-Xlinker", "__TEXT",
+                    "-Xlinker", "__info_plist",
+                    "-Xlinker", "Sources/OptionTab/Resources/Info.plist"
+                ])
             ]
         ),
         .testTarget(
