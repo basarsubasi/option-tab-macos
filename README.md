@@ -14,26 +14,26 @@ OptionTab is a fast and minimal window switcher that fixes the most annoying sho
 
 ---
 
-## Installation
+## Installation (Homebrew)
 
-You can download the latest pre-compiled version of OptionTab directly from GitHub.
+The easiest and recommended way to install OptionTab is via Homebrew. This method automatically bypasses macOS Gatekeeper security warnings and launches the app for you automatically upon installation.
 
-1. Go to the **Releases** page of this repository and download the latest `OptionTab.dmg` file.
-2. Double-click the `.dmg` file to open it.
-3. Drag `OptionTab.app` into your **Applications** folder.
-
-### Important: macOS Gatekeeper Bypass
-
-Because OptionTab is an indie open-source project, it is not signed with a paid Apple Developer certificate. When you download it through a web browser, macOS will automatically quarantine the app. If you try to open it, you may see a scary (and misleading) error stating:
-> *"OptionTab is damaged and can't be opened. You should move it to the Trash."*
-
-**To fix this and allow the app to run permanently, you must manually remove the quarantine flag.**
-
-After dragging the app to your Applications folder, open your **Terminal** and run this exact command:
 ```bash
-xattr -cr /Applications/OptionTab.app
+brew tap basarsubasi/tap
+brew trust basarsubasi/tap
+brew install --cask optiontab
 ```
-Once you run this command, the security block is permanently lifted, and you can launch OptionTab normally.
+
+### Manual Installation
+
+If you prefer not to use Homebrew, you can install the app manually:
+
+1. Go to the **Releases** page of this repository and download the latest `.dmg` file.
+2. Double-click the `.dmg` file and drag `OptionTab.app` into your **Applications** folder.
+3. **Important**: Because OptionTab is an indie open-source project, macOS will quarantine the app. If you see an error stating *"OptionTab is damaged and can't be opened"*, you must run this command in your Terminal to permanently lift the security block:
+   ```bash
+   xattr -cr /Applications/OptionTab.app
+   ```
 
 ---
 
