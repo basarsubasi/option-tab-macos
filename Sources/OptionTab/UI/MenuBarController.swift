@@ -137,6 +137,8 @@ final class ShortcutRecorderView: NSView {
     var onShortcutSet: ((HotkeyManager.Shortcut) -> Void)?
     private var isRecording = false
 
+    override var acceptsFirstResponder: Bool { true }
+
     override init(frame frameRect: NSRect) {
         super.init(frame: NSRect(x: 0, y: 0, width: 300, height: 40))
         setupView()

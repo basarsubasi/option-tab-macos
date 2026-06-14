@@ -18,7 +18,7 @@ final class SwitcherPanel: NSPanel {
     private let iconPadding: CGFloat = 16
     private let highlightBorderWidth: CGFloat = 4
     private let highlightColor: NSColor = .controlAccentColor
-    private let panelPadding: CGFloat = 24
+    private let panelPadding: CGFloat = 48
 
     init() {
         super.init(

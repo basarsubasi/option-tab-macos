@@ -27,7 +27,7 @@ final class WindowEnumerator: @unchecked Sendable {
 
     /// Enumerate on-screen windows using CGWindowListCopyWindowInfo.
     private func enumerateOnScreen() -> [WindowItem] {
-        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        let options: CGWindowListOption = [.excludeDesktopElements, .optionOnScreenAboveWindow, .optionOnScreenBelowWindow, .optionOnScreenOnly, .optionIncludingWindow,]
         guard let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
             return []
         }
