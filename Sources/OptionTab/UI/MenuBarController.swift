@@ -87,7 +87,7 @@ final class MenuBarController: NSObject {
         let quitItem = NSMenuItem(
             title: "Quit OptionTab",
             action: #selector(quit),
-            keyEquivalent: "q"
+            keyEquivalent: ""
         )
         quitItem.target = self
         quitItem.isEnabled = true

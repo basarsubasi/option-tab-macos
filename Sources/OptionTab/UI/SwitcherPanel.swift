@@ -11,6 +11,8 @@ final class SwitcherPanel: NSPanel {
     private let gridStackView = NSStackView() // Vertical stack for rows
     private let titleLabel = NSTextField(labelWithString: "")
     
+    var onCloseWindow: ((WindowItem) -> Void)?
+    
     private let maxColumns = 8
 
     // Highlight configuration
@@ -87,6 +89,38 @@ final class SwitcherPanel: NSPanel {
         windows = []
         iconViews = []
         selectedIndex = 0
+    }
+
+    /// Remove a window from the switcher dynamically.
+    func removeWindow(withId id: CGWindowID) {
+        if let index = windows.firstIndex(where: { $0.id == id }) {
+            windows.remove(at: index)
+            if selectedIndex >= windows.count {
+                selectedIndex = max(0, windows.count - 1)
+            }
+            if windows.isEmpty {
+                hide()
+            } else {
+                rebuildIconViews()
+                updateHighlight()
+                // Update size without losing center
+                if let screen = NSScreen.main {
+                    let frame = screen.visibleFrame
+                    let columns = min(windows.count, maxColumns)
+                    let rows = Int(ceil(Double(windows.count) / Double(maxColumns)))
+                    
+                    let gridWidth = CGFloat(columns) * iconSize + CGFloat(max(0, columns - 1)) * iconPadding
+                    let gridHeight = CGFloat(rows) * iconSize + CGFloat(max(0, rows - 1)) * iconPadding
+                    
+                    let panelWidth = max(300, gridWidth + panelPadding * 2)
+                    let panelHeight = gridHeight + panelPadding * 2 + 36
+                    
+                    let x = frame.midX - panelWidth / 2
+                    let y = frame.midY - panelHeight / 2
+                    setFrame(NSRect(x: x, y: y, width: panelWidth, height: panelHeight), display: true)
+                }
+            }
+        }
     }
 
     /// Cycle the selection to the next window.
@@ -180,10 +214,17 @@ final class SwitcherPanel: NSPanel {
             imageView.translatesAutoresizingMaskIntoConstraints = false
 
             // Wrapper for highlight border
-            let wrapper = NSView()
+            let wrapper = HoverWrapperView()
+            wrapper.windowItem = window
+            wrapper.onClose = { [weak self] item in
+                self?.onCloseWindow?(item)
+            }
             wrapper.wantsLayer = true
             wrapper.layer?.cornerRadius = 12
-            wrapper.layer?.masksToBounds = true
+            // We set masksToBounds false so the close button can slightly overlap the border if we wanted,
+            // but we need the background color to respect the corner radius. 
+            // We can just rely on cornerRadius applying to the background.
+            wrapper.layer?.masksToBounds = false
             wrapper.translatesAutoresizingMaskIntoConstraints = false
 
             wrapper.addSubview(imageView)
@@ -194,6 +235,27 @@ final class SwitcherPanel: NSPanel {
                 imageView.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor),
                 imageView.widthAnchor.constraint(equalToConstant: iconSize),
                 imageView.heightAnchor.constraint(equalToConstant: iconSize),
+            ])
+
+            // Add close button
+            let closeBtn = NSButton()
+            closeBtn.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Close")
+            closeBtn.isBordered = false
+            closeBtn.imagePosition = .imageOnly
+            closeBtn.target = wrapper
+            closeBtn.action = #selector(HoverWrapperView.closeClicked)
+            closeBtn.translatesAutoresizingMaskIntoConstraints = false
+            closeBtn.alphaValue = 0.0
+            closeBtn.contentTintColor = .systemRed
+
+            wrapper.addSubview(closeBtn)
+            wrapper.closeButton = closeBtn
+
+            NSLayoutConstraint.activate([
+                closeBtn.topAnchor.constraint(equalTo: wrapper.topAnchor, constant: 4),
+                closeBtn.trailingAnchor.constraint(equalTo: wrapper.trailingAnchor, constant: -4),
+                closeBtn.widthAnchor.constraint(equalToConstant: 18),
+                closeBtn.heightAnchor.constraint(equalToConstant: 18)
             ])
 
             // Minimized indicator: dim the icon
@@ -252,5 +314,36 @@ final class SwitcherPanel: NSPanel {
         )
         resized.unlockFocus()
         return resized
+    }
+}
+
+private class HoverWrapperView: NSView {
+    var closeButton: NSButton!
+    var windowItem: WindowItem!
+    var onClose: ((WindowItem) -> Void)?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach { removeTrackingArea($0) }
+        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self, userInfo: nil)
+        addTrackingArea(area)
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.1
+            closeButton.animator().alphaValue = 1.0
+        }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.1
+            closeButton.animator().alphaValue = 0.0
+        }
+    }
+    
+    @objc func closeClicked() {
+        onClose?(windowItem)
     }
 }

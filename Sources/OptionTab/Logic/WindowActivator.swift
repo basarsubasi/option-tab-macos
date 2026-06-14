@@ -118,4 +118,43 @@ enum WindowActivator {
             }
         }
     }
+
+    /// Closes a window using AXUIElement by simulating a click on the red close button.
+    @MainActor
+    static func close(_ window: WindowItem) {
+        let appElement = AXUIElementCreateApplication(window.pid)
+        var windowsValue: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(
+            appElement,
+            kAXWindowsAttribute as CFString,
+            &windowsValue
+        )
+
+        guard result == .success, let axWindows = windowsValue as? [AXUIElement] else { return }
+
+        // Find window by title and close it
+        for axWindow in axWindows {
+            var titleValue: CFTypeRef?
+            AXUIElementCopyAttributeValue(axWindow, kAXTitleAttribute as CFString, &titleValue)
+
+            if let title = titleValue as? String, title == window.title {
+                clickCloseButton(of: axWindow)
+                return
+            }
+        }
+        
+        // Fallback: if no title match (e.g. empty title), close the first window
+        if let first = axWindows.first {
+            clickCloseButton(of: first)
+        }
+    }
+    
+    private static func clickCloseButton(of axWindow: AXUIElement) {
+        var closeButtonValue: CFTypeRef?
+        if AXUIElementCopyAttributeValue(axWindow, kAXCloseButtonAttribute as CFString, &closeButtonValue) == .success {
+            // Swift 6 / Foundation bridging quirk: sometimes it's wrapped, but as! AXUIElement works on CFTypeRef.
+            let closeButton = closeButtonValue as! AXUIElement
+            AXUIElementPerformAction(closeButton, kAXPressAction as CFString)
+        }
+    }
 }

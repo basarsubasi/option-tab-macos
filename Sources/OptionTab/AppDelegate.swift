@@ -32,6 +32,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let panel = SwitcherPanel()
         switcherPanel = panel
+        
+        panel.onCloseWindow = { [weak self] window in
+            Task { @MainActor in
+                guard let self = self else { return }
+                // 1. Physically close the window via Accessibility
+                WindowActivator.close(window)
+                // 2. Remove it from the MRU queue so it doesn't reappear
+                self.mruTracker?.removeWindow(windowID: window.id)
+                // 3. Remove it from the UI immediately
+                self.switcherPanel?.removeWindow(withId: window.id)
+            }
+        }
 
         let hotkey = HotkeyManager()
         hotkeyManager = hotkey
