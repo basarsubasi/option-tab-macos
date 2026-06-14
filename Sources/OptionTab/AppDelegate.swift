@@ -11,6 +11,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var accessibilityTimer: Timer?
     private var focusTrackerRef: FocusTracker?
 
+    // State to handle fast hotkey presses during enumeration
+    private var isEnumerating = false
+    private var pendingCycleSteps = 0
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSLog("[OptionTab] App launched")
 
@@ -30,12 +34,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Wire up hotkey → switcher panel
         hotkey.onActivate = { [weak self] in
             Task { @MainActor in
+                self?.isEnumerating = true
+                self?.pendingCycleSteps = 0
                 self?.showSwitcher()
             }
         }
-        hotkey.onCycleNext = { [weak self] in
+        hotkey.onCycle = { [weak self] forward in
             Task { @MainActor in
-                self?.switcherPanel?.cycleNext()
+                guard let self = self else { return }
+                if self.isEnumerating {
+                    self.pendingCycleSteps += (forward ? 1 : -1)
+                } else {
+                    if forward {
+                        self.switcherPanel?.cycleNext()
+                    } else {
+                        self.switcherPanel?.cyclePrevious()
+                    }
+                }
             }
         }
         hotkey.onDeactivate = { [weak self] _ in
@@ -92,6 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowEnumerator.enumerate { [weak self] liveWindows in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                self.isEnumerating = false
+
                 let mruOrder = self.mruTracker?.sortedWindows() ?? []
 
                 // Sort live windows by MRU: windows seen in tracker come first (by their tracked order),
@@ -100,10 +117,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let sorted = liveWindows.sorted { a, b in
                     let ai = mruIDs.firstIndex(of: a.id) ?? Int.max
                     let bi = mruIDs.firstIndex(of: b.id) ?? Int.max
+                    // Important: if both are Int.max (unknown to MRU tracker), keep their original Z-order (front-to-back)
+                    if ai == Int.max && bi == Int.max { return false }
                     return ai < bi
                 }
 
                 self.switcherPanel?.show(with: sorted)
+
+                // Apply any tab presses that happened while we were enumerating
+                if self.pendingCycleSteps > 0 {
+                    for _ in 0..<self.pendingCycleSteps { self.switcherPanel?.cycleNext() }
+                } else if self.pendingCycleSteps < 0 {
+                    for _ in 0..<abs(self.pendingCycleSteps) { self.switcherPanel?.cyclePrevious() }
+                }
+                self.pendingCycleSteps = 0
             }
         }
     }

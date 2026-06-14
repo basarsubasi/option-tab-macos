@@ -6,7 +6,9 @@ final class SwitcherPanel: NSPanel {
     private var windows: [WindowItem] = []
     private var selectedIndex = 0
     private var iconViews: [NSImageView] = []
-    private let stackView = NSStackView()
+    private let mainStackView = NSStackView()
+    private let iconStackView = NSStackView()
+    private let titleLabel = NSTextField(labelWithString: "")
 
     // Highlight configuration
     private let iconSize: CGFloat = 48
@@ -48,12 +50,8 @@ final class SwitcherPanel: NSPanel {
 
         guard !windows.isEmpty else {
             // Show empty state
-            let label = NSTextField(labelWithString: "No windows")
-            label.textColor = .secondaryLabelColor
-            label.font = .systemFont(ofSize: 14)
-            label.alignment = .center
-            stackView.subviews.forEach { $0.removeFromSuperview() }
-            stackView.addArrangedSubview(label)
+            titleLabel.stringValue = "No windows"
+            iconStackView.subviews.forEach { $0.removeFromSuperview() }
             return
         }
 
@@ -62,8 +60,8 @@ final class SwitcherPanel: NSPanel {
         // Position centered on screen
         if let screen = NSScreen.main {
             let frame = screen.visibleFrame
-            let panelWidth = CGFloat(windows.count) * (iconSize + iconPadding * 2) + panelPadding * 2
-            let panelHeight = iconSize + iconPadding * 2 + panelPadding * 2
+            let panelWidth = max(300, CGFloat(windows.count) * (iconSize + iconPadding * 2) + panelPadding * 2)
+            let panelHeight = iconSize + iconPadding * 2 + panelPadding * 2 + 30 // Extra 30 for title label
             let x = frame.midX - panelWidth / 2
             let y = frame.midY - panelHeight / 2
             setFrame(NSRect(x: x, y: y, width: panelWidth, height: panelHeight), display: true)
@@ -103,15 +101,28 @@ final class SwitcherPanel: NSPanel {
     // MARK: - Private
 
     private func setupStackView() {
-        stackView.orientation = .horizontal
-        stackView.alignment = .centerY
-        stackView.spacing = iconPadding
-        stackView.edgeInsets = NSEdgeInsets(
+        mainStackView.orientation = .vertical
+        mainStackView.alignment = .centerX
+        mainStackView.spacing = 8
+        mainStackView.edgeInsets = NSEdgeInsets(
             top: panelPadding,
             left: panelPadding,
             bottom: panelPadding,
             right: panelPadding
         )
+
+        iconStackView.orientation = .horizontal
+        iconStackView.alignment = .centerY
+        iconStackView.spacing = iconPadding
+
+        titleLabel.textColor = .labelColor
+        titleLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        titleLabel.alignment = .center
+        titleLabel.lineBreakMode = .byTruncatingTail
+        titleLabel.maximumNumberOfLines = 1
+
+        mainStackView.addArrangedSubview(iconStackView)
+        mainStackView.addArrangedSubview(titleLabel)
 
         // Container with rounded background
         let containerView = NSView()
@@ -120,22 +131,22 @@ final class SwitcherPanel: NSPanel {
         containerView.layer?.cornerRadius = 12
         containerView.layer?.masksToBounds = true
 
-        containerView.addSubview(stackView)
+        containerView.addSubview(mainStackView)
 
-        // Layout stackView to fill container
-        stackView.translatesAutoresizingMaskIntoConstraints = false
+        // Layout mainStackView to fill container
+        mainStackView.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
-            stackView.topAnchor.constraint(equalTo: containerView.topAnchor),
-            stackView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-            stackView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            stackView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            mainStackView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            mainStackView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+            mainStackView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            mainStackView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
         ])
 
         self.contentView = containerView
     }
 
     private func rebuildIconViews() {
-        stackView.subviews.forEach { $0.removeFromSuperview() }
+        iconStackView.subviews.forEach { $0.removeFromSuperview() }
         iconViews = []
 
         for window in windows {
@@ -170,13 +181,13 @@ final class SwitcherPanel: NSPanel {
                imageView.contentTintColor = .secondaryLabelColor
             }
 
-            stackView.addArrangedSubview(wrapper)
+            iconStackView.addArrangedSubview(wrapper)
             iconViews.append(imageView)
         }
     }
 
     private func updateHighlight() {
-        for (index, wrapper) in stackView.arrangedSubviews.enumerated() {
+        for (index, wrapper) in iconStackView.arrangedSubviews.enumerated() {
             guard index < iconViews.count else { break }
 
             if index == selectedIndex {
@@ -188,6 +199,16 @@ final class SwitcherPanel: NSPanel {
                 wrapper.layer?.borderWidth = 1
                 wrapper.layer?.backgroundColor = NSColor.clear.cgColor
             }
+        }
+        
+        if let selected = selectedWindow {
+            if selected.title.isEmpty {
+                titleLabel.stringValue = selected.appName
+            } else {
+                titleLabel.stringValue = "\(selected.appName) - \(selected.title)"
+            }
+        } else {
+            titleLabel.stringValue = ""
         }
     }
 

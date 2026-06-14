@@ -71,7 +71,7 @@ final class HotkeyManager: @unchecked Sendable {
     // MARK: - Callbacks
 
     var onActivate: (@Sendable () -> Void)?
-    var onCycleNext: (@Sendable () -> Void)?
+    var onCycle: (@Sendable (Bool) -> Void)?
     var onDeactivate: (@Sendable (WindowItem?) -> Void)?
 
     // MARK: - Properties
@@ -213,12 +213,15 @@ private func hotkeyEventCallback(
         let flags = event.flags
 
         if keyCode == manager.shortcut.keyCode && manager.hasRequiredModifier(flags) {
+            let isShiftPressed = flags.contains(.maskShift)
+            let forward = !isShiftPressed
+
             if !manager.isActive {
                 manager.isActive = true
                 NSLog("[OptionTab] Shortcut detected — activating switcher")
                 manager.onActivate?()
             } else {
-                manager.onCycleNext?()
+                manager.onCycle?(forward)
             }
             return nil  // Consume the event
         }
@@ -226,8 +229,11 @@ private func hotkeyEventCallback(
         // If active and arrow keys are pressed, cycle
         if manager.isActive {
             let key = UInt16(keyCode)
-            if key == UInt16(kVK_LeftArrow) || key == UInt16(kVK_RightArrow) {
-                manager.onCycleNext?()
+            if key == UInt16(kVK_LeftArrow) {
+                manager.onCycle?(false)
+                return nil
+            } else if key == UInt16(kVK_RightArrow) {
+                manager.onCycle?(true)
                 return nil
             }
         }
