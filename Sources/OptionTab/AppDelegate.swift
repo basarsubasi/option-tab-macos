@@ -67,6 +67,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.activateWindow(selected)
             }
         }
+        hotkey.onCancel = { [weak self] in
+            Task { @MainActor in
+                self?.switcherPanel?.hide()
+            }
+        }
 
         // Start focus tracking — hold a reference so it stays alive
         let focusTracker = FocusTracker(tracker: tracker)

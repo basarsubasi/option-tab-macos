@@ -73,6 +73,7 @@ final class HotkeyManager: @unchecked Sendable {
     var onActivate: (@Sendable () -> Void)?
     var onCycle: (@Sendable (Bool) -> Void)?
     var onDeactivate: (@Sendable (WindowItem?) -> Void)?
+    var onCancel: (@Sendable () -> Void)?
 
     // MARK: - Properties
 
@@ -226,7 +227,7 @@ private func hotkeyEventCallback(
             return nil  // Consume the event
         }
 
-        // If active and arrow keys are pressed, cycle
+        // If active and arrow/action keys are pressed, cycle or confirm
         if manager.isActive {
             let key = UInt16(keyCode)
             if key == UInt16(kVK_LeftArrow) {
@@ -234,6 +235,16 @@ private func hotkeyEventCallback(
                 return nil
             } else if key == UInt16(kVK_RightArrow) {
                 manager.onCycle?(true)
+                return nil
+            } else if key == UInt16(kVK_Return) || key == UInt16(kVK_Space) {
+                manager.isActive = false
+                manager.modifierPressed = false
+                manager.onDeactivate?(nil)
+                return nil
+            } else if key == UInt16(kVK_Escape) {
+                manager.isActive = false
+                manager.modifierPressed = false
+                manager.onCancel?()
                 return nil
             }
         }

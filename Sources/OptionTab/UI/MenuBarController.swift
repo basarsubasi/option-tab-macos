@@ -103,21 +103,23 @@ final class MenuBarController: NSObject {
         alert.messageText = "Change Shortcut"
         alert.informativeText = "Press the new key combination to set as the switcher shortcut.\nCurrent shortcut: \(hotkeyManager?.shortcut.displayString ?? "Opt+Tab")"
         alert.alertStyle = .informational
+        
+        alert.addButton(withTitle: "Apply")
         alert.addButton(withTitle: "Cancel")
 
         // Create a custom view that captures key presses
         let shortcutRecorder = ShortcutRecorderView()
-        shortcutRecorder.onShortcutSet = { [weak self] shortcut in
-            self?.hotkeyManager?.updateShortcut(shortcut)
-            // Update menu item title
-            if let menuItem = self?.statusItem.menu?.items.first {
-                menuItem.title = "Shortcut: \(shortcut.displayString)"
-            }
-            alert.window.close()
-        }
         alert.accessoryView = shortcutRecorder
 
-        alert.runModal()
+        let response = alert.runModal()
+        
+        if response == .alertFirstButtonReturn, let newShortcut = shortcutRecorder.recordedShortcut {
+            self.hotkeyManager?.updateShortcut(newShortcut)
+            // Update menu item title
+            if let menuItem = self.statusItem.menu?.items.first {
+                menuItem.title = "Shortcut: \(newShortcut.displayString)"
+            }
+        }
     }
 
     @objc private func toggleStartAtLogin(_ sender: NSMenuItem) {
@@ -186,8 +188,9 @@ final class MenuBarController: NSObject {
 /// A custom view that captures key combinations for shortcut configuration.
 @MainActor
 final class ShortcutRecorderView: NSView {
-    var onShortcutSet: ((HotkeyManager.Shortcut) -> Void)?
+    var recordedShortcut: HotkeyManager.Shortcut?
     private var isRecording = false
+    private var label: NSTextField!
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -208,7 +211,7 @@ final class ShortcutRecorderView: NSView {
         layer?.cornerRadius = 4
         layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
 
-        let label = NSTextField(labelWithString: "Click here, then press a key combination\u{2026}")
+        label = NSTextField(labelWithString: "Click here, then press a key combination\u{2026}")
         label.textColor = .placeholderTextColor
         label.font = .systemFont(ofSize: 13)
         label.alignment = .center
@@ -220,11 +223,28 @@ final class ShortcutRecorderView: NSView {
         ])
     }
 
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        window?.makeFirstResponder(self)
+        isRecording = true
+        layer?.borderColor = NSColor.controlAccentColor.cgColor
+        layer?.borderWidth = 2
+    }
+
     override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
         isRecording = true
         layer?.borderColor = NSColor.controlAccentColor.cgColor
         layer?.borderWidth = 2
         super.mouseDown(with: event)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if isRecording {
+            keyDown(with: event)
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
     }
 
     override func keyDown(with event: NSEvent) {
@@ -240,14 +260,10 @@ final class ShortcutRecorderView: NSView {
         if event.modifierFlags.contains(.control) { modifierFlags |= UInt32(controlKey) }
         if event.modifierFlags.contains(.shift) { modifierFlags |= UInt32(shiftKey) }
 
-        // Require at least one modifier
-        guard modifierFlags != 0 else {
-            NSSound.beep()
-            return
-        }
-
         let shortcut = HotkeyManager.Shortcut(keyCode: keyCode, modifierFlags: modifierFlags)
-        isRecording = false
-        onShortcutSet?(shortcut)
+        recordedShortcut = shortcut
+        
+        label.stringValue = shortcut.displayString
+        label.textColor = .labelColor
     }
 }
