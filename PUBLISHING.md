@@ -22,7 +22,7 @@ Create a file named `create_dmg.sh` in the project root, make it executable (`ch
 set -e
 
 APP_NAME="OptionTab"
-VERSION="1.0"
+VERSION="1.0.0"
 DMG_NAME="${APP_NAME}-${VERSION}.dmg"
 
 echo "🔨 Building Release version..."
@@ -63,7 +63,7 @@ echo "✅ DMG created: $DMG_NAME"
 1. Push your code to GitHub.
 2. Go to **Releases** → **Draft a new release**.
 3. Create a tag (e.g., `v1.0.0`).
-4. Upload the generated `OptionTab-1.0.dmg` file as an asset.
+4. Upload the generated `OptionTab-1.0.0.dmg` file as an asset.
 5. In the Release notes, **you MUST tell the users:**
    > **Note:** Because this app is not signed with a paid Apple Developer account, macOS will flag it as damaged. After dragging OptionTab to your Applications folder, open your Terminal and run:  
    > `xattr -cr /Applications/OptionTab.app`
@@ -71,7 +71,7 @@ echo "✅ DMG created: $DMG_NAME"
 6. Publish the release and copy the direct URL to the `.dmg` file.
 7. Get the SHA-256 hash of your DMG:
    ```bash
-   shasum -a 256 OptionTab-1.0.dmg
+   shasum -a 256 OptionTab-1.0.0.dmg
    ```
 
 ---
@@ -92,7 +92,7 @@ This file defines how Homebrew downloads the app, installs it, and most importan
 cask "optiontab" do
   version "1.0.0"
   
-  # Replace this with the output of `shasum -a 256 OptionTab-1.0.dmg`
+  # Replace this with the output of `shasum -a 256 OptionTab-1.0.0.dmg`
   sha256 "YOUR_SHA256_HASH_HERE"
 
   # Replace this with the actual URL to your GitHub release DMG
@@ -127,7 +127,7 @@ cask "optiontab" do
             login_item: "OptionTab"
 
   # 2. Reset Accessibility Permissions via terminal
-  uninstall postflight do
+  uninstall_postflight do
     system_command "tccutil",
                    args: ["reset", "Accessibility", "com.optiontab.app"],
                    sudo: false

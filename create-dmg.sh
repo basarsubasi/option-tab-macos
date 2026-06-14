@@ -2,7 +2,7 @@
 set -e
 
 APP_NAME="OptionTab"
-VERSION="1.0"
+VERSION="1.0.0"
 DMG_NAME="${APP_NAME}-${VERSION}.dmg"
 
 echo "Building Release version..."
