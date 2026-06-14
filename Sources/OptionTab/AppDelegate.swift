@@ -18,6 +18,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSLog("[OptionTab] App launched")
 
+        // Apply saved theme
+        let currentTheme = UserDefaults.standard.string(forKey: "AppTheme") ?? "System"
+        if currentTheme == "Light" {
+            NSApp.appearance = NSAppearance(named: .aqua)
+        } else if currentTheme == "Dark" {
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
+
         // Initialize core components
         let tracker = MRUTracker()
         mruTracker = tracker
@@ -139,6 +147,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switcherPanel?.hide()
         guard let window = window else { return }
         WindowActivator.activate(window)
+    }
+
+    // MARK: - Dock Menu & Theme Management
+
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+        let themeItem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
+        let themeMenu = NSMenu()
+        
+        let systemItem = NSMenuItem(title: "System", action: #selector(setThemeSystem), keyEquivalent: "")
+        let lightItem = NSMenuItem(title: "Light", action: #selector(setThemeLight), keyEquivalent: "")
+        let darkItem = NSMenuItem(title: "Dark", action: #selector(setThemeDark), keyEquivalent: "")
+        
+        let currentTheme = UserDefaults.standard.string(forKey: "AppTheme") ?? "System"
+        systemItem.state = currentTheme == "System" ? .on : .off
+        lightItem.state = currentTheme == "Light" ? .on : .off
+        darkItem.state = currentTheme == "Dark" ? .on : .off
+        
+        themeMenu.addItem(systemItem)
+        themeMenu.addItem(lightItem)
+        themeMenu.addItem(darkItem)
+        
+        themeItem.submenu = themeMenu
+        menu.addItem(themeItem)
+        
+        return menu
+    }
+
+    @objc private func setThemeSystem() {
+        UserDefaults.standard.set("System", forKey: "AppTheme")
+        NSApp.appearance = nil
+    }
+
+    @objc private func setThemeLight() {
+        UserDefaults.standard.set("Light", forKey: "AppTheme")
+        NSApp.appearance = NSAppearance(named: .aqua)
+    }
+
+    @objc private func setThemeDark() {
+        UserDefaults.standard.set("Dark", forKey: "AppTheme")
+        NSApp.appearance = NSAppearance(named: .darkAqua)
     }
 }
 

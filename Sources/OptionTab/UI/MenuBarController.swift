@@ -43,6 +43,32 @@ final class MenuBarController: NSObject {
         menu.addItem(changeShortcutItem)
 
         menu.addItem(NSMenuItem.separator())
+        
+        // Theme
+        let themeItem = NSMenuItem(title: "Theme", action: nil, keyEquivalent: "")
+        let themeMenu = NSMenu()
+        
+        let systemItem = NSMenuItem(title: "System", action: #selector(setThemeSystem), keyEquivalent: "")
+        let lightItem = NSMenuItem(title: "Light", action: #selector(setThemeLight), keyEquivalent: "")
+        let darkItem = NSMenuItem(title: "Dark", action: #selector(setThemeDark), keyEquivalent: "")
+        
+        systemItem.target = self
+        lightItem.target = self
+        darkItem.target = self
+        
+        let currentTheme = UserDefaults.standard.string(forKey: "AppTheme") ?? "System"
+        systemItem.state = currentTheme == "System" ? .on : .off
+        lightItem.state = currentTheme == "Light" ? .on : .off
+        darkItem.state = currentTheme == "Dark" ? .on : .off
+        
+        themeMenu.addItem(systemItem)
+        themeMenu.addItem(lightItem)
+        themeMenu.addItem(darkItem)
+        
+        themeItem.submenu = themeMenu
+        menu.addItem(themeItem)
+
+        menu.addItem(NSMenuItem.separator())
 
         // Start at Login
         let startAtLoginItem = NSMenuItem(
@@ -106,6 +132,32 @@ final class MenuBarController: NSObject {
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+
+    @objc private func setThemeSystem() {
+        UserDefaults.standard.set("System", forKey: "AppTheme")
+        NSApp.appearance = nil
+        updateThemeMenu()
+    }
+
+    @objc private func setThemeLight() {
+        UserDefaults.standard.set("Light", forKey: "AppTheme")
+        NSApp.appearance = NSAppearance(named: .aqua)
+        updateThemeMenu()
+    }
+
+    @objc private func setThemeDark() {
+        UserDefaults.standard.set("Dark", forKey: "AppTheme")
+        NSApp.appearance = NSAppearance(named: .darkAqua)
+        updateThemeMenu()
+    }
+    
+    private func updateThemeMenu() {
+        guard let themeMenu = statusItem.menu?.item(withTitle: "Theme")?.submenu else { return }
+        let currentTheme = UserDefaults.standard.string(forKey: "AppTheme") ?? "System"
+        themeMenu.item(withTitle: "System")?.state = currentTheme == "System" ? .on : .off
+        themeMenu.item(withTitle: "Light")?.state = currentTheme == "Light" ? .on : .off
+        themeMenu.item(withTitle: "Dark")?.state = currentTheme == "Dark" ? .on : .off
     }
 
     // MARK: - Login Item Management

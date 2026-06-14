@@ -136,10 +136,12 @@ final class SwitcherPanel: NSPanel {
         mainStackView.addArrangedSubview(gridStackView)
         mainStackView.addArrangedSubview(titleLabel)
 
-        // Container with rounded background
-        let containerView = NSView()
+        // Container with rounded blurred background (NSVisualEffectView handles themes automatically)
+        let containerView = NSVisualEffectView()
+        containerView.material = .popover
+        containerView.blendingMode = .behindWindow
+        containerView.state = .active
         containerView.wantsLayer = true
-        containerView.layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.95).cgColor
         containerView.layer?.cornerRadius = 18
         containerView.layer?.masksToBounds = true
 
