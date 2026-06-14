@@ -14,11 +14,11 @@ final class SwitcherPanel: NSPanel {
     private let maxColumns = 8
 
     // Highlight configuration
-    private let iconSize: CGFloat = 48
-    private let iconPadding: CGFloat = 8
-    private let highlightBorderWidth: CGFloat = 3
+    private let iconSize: CGFloat = 64
+    private let iconPadding: CGFloat = 16
+    private let highlightBorderWidth: CGFloat = 4
     private let highlightColor: NSColor = .controlAccentColor
-    private let panelPadding: CGFloat = 16
+    private let panelPadding: CGFloat = 24
 
     init() {
         super.init(
@@ -71,7 +71,7 @@ final class SwitcherPanel: NSPanel {
             let gridHeight = CGFloat(rows) * iconSize + CGFloat(max(0, rows - 1)) * iconPadding
             
             let panelWidth = max(300, gridWidth + panelPadding * 2)
-            let panelHeight = gridHeight + panelPadding * 2 + 30 // Extra 30 for title label
+            let panelHeight = gridHeight + panelPadding * 2 + 36 // Extra 36 for title label
             
             let x = frame.midX - panelWidth / 2
             let y = frame.midY - panelHeight / 2
@@ -140,7 +140,7 @@ final class SwitcherPanel: NSPanel {
         let containerView = NSView()
         containerView.wantsLayer = true
         containerView.layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.95).cgColor
-        containerView.layer?.cornerRadius = 12
+        containerView.layer?.cornerRadius = 18
         containerView.layer?.masksToBounds = true
 
         containerView.addSubview(mainStackView)
@@ -180,7 +180,7 @@ final class SwitcherPanel: NSPanel {
             // Wrapper for highlight border
             let wrapper = NSView()
             wrapper.wantsLayer = true
-            wrapper.layer?.cornerRadius = 8
+            wrapper.layer?.cornerRadius = 12
             wrapper.layer?.masksToBounds = true
             wrapper.translatesAutoresizingMaskIntoConstraints = false
 
