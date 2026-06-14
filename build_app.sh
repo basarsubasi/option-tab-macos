@@ -29,6 +29,11 @@ cp "$BUILD_DIR/$APP_NAME" "$MACOS_DIR/$APP_NAME"
 # Copy Info.plist into the bundle (required for Accessibility permission)
 cp "Sources/OptionTab/Resources/Info.plist" "$CONTENTS/Info.plist"
 
+# Copy App Icon if it exists
+if [ -f "Sources/OptionTab/Resources/AppIcon.icns" ]; then
+    cp "Sources/OptionTab/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
+fi
+
 # Ad-hoc code sign — required for CGEvent tap to work on modern macOS
 echo "🔏 Code signing..."
 codesign --force --sign - --deep "$APP_BUNDLE"
