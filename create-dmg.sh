@@ -5,10 +5,10 @@ APP_NAME="OptionTab"
 VERSION="1.0"
 DMG_NAME="${APP_NAME}-${VERSION}.dmg"
 
-echo "🔨 Building Release version..."
+echo "Building Release version..."
 swift build -c release
 
-echo "📦 Assembling App bundle..."
+echo "Assembling App bundle..."
 rm -rf "${APP_NAME}.app"
 mkdir -p "${APP_NAME}.app/Contents/MacOS"
 mkdir -p "${APP_NAME}.app/Contents/Resources"
@@ -19,10 +19,10 @@ if [ -f "Sources/${APP_NAME}/Resources/AppIcon.icns" ]; then
     cp "Sources/${APP_NAME}/Resources/AppIcon.icns" "${APP_NAME}.app/Contents/Resources/"
 fi
 
-echo "🔏 Ad-hoc Code signing..."
+echo "Ad-hoc Code signing..."
 codesign --force --deep --sign - "${APP_NAME}.app"
 
-echo "💿 Creating DMG..."
+echo "Creating DMG..."
 rm -f "$DMG_NAME"
 create-dmg \
   --volname "${APP_NAME} Installer" \
@@ -35,4 +35,4 @@ create-dmg \
   "$DMG_NAME" \
   "${APP_NAME}.app"
 
-echo "✅ DMG created: $DMG_NAME"
+echo "DMG created: $DMG_NAME"

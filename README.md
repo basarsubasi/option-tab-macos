@@ -5,10 +5,11 @@ OptionTab is a fast and minimal window switcher that fixes the most annoying sho
 ## Features
 - **Quiet by design**: No annoying notifications or pop-ups whatsoever.
 - **Free as in free beer**: This app is completely free to use and will stay free forever.
+- **Stable as you can get**: Targeting the most stable macOS APIs as possible, meaning you probably won't need to update this app very often if ever.
 - **Smart Window Ordering**: Switches to most recently used windows first.
 - **Keyboard Navigation**: Cycle through windows using customizable keyboard shortcuts.
 - **Mouse Support**: You can use your mouse to switch windows as well as the keyboard shortcut.
-- **Lightweight & Fast**: Built as a native Swift project with zero unnecessary bloat.
+- **Lightweight & Fast**: Built as a native Swift project with zero unnecessary bloat and third party dependencies.
 - **Theme Support**: Choose between light or dark themes or use your system theme.
 
 ---

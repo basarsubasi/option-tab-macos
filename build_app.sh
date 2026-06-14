@@ -15,10 +15,10 @@ RESOURCES_DIR="$CONTENTS/Resources"
 killall "$APP_NAME" 2>/dev/null || true
 sleep 0.5
 
-echo "🔨 Building $APP_NAME..."
+echo "Building $APP_NAME..."
 swift build 2>&1
 
-echo "📦 Assembling $APP_BUNDLE..."
+echo "Assembling $APP_BUNDLE..."
 rm -rf "$APP_BUNDLE"
 mkdir -p "$MACOS_DIR"
 mkdir -p "$RESOURCES_DIR"
@@ -35,14 +35,14 @@ if [ -f "Sources/OptionTab/Resources/AppIcon.icns" ]; then
 fi
 
 # Ad-hoc code sign — required for CGEvent tap to work on modern macOS
-echo "🔏 Code signing..."
+echo "Code signing..."
 codesign --force --sign - --deep "$APP_BUNDLE"
 
-echo "✅ Done! Run with:"
+echo "Done! Run with:"
 echo "   open $APP_BUNDLE"
 echo ""
 echo "To see diagnostic logs:"
 echo "   ./$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 echo ""
-echo "⚠️  After rebuilding, remove and re-add OptionTab in:"
-echo "   System Settings → Privacy & Security → Accessibility"
+echo "After rebuilding, remove and re-add OptionTab in:"
+echo "   System Settings -> Privacy & Security -> Accessibility"
