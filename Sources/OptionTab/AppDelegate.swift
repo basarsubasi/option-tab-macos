@@ -25,6 +25,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if currentTheme == "Dark" {
             NSApp.appearance = NSAppearance(named: .darkAqua)
         }
+        
+        // Force Dock to use our icon (bypasses macOS icon caching bugs)
+        if let iconPath = Bundle.main.path(forResource: "AppIcon", ofType: "icns") {
+            NSApp.applicationIconImage = NSImage(contentsOfFile: iconPath)
+        }
 
         // Initialize core components
         let tracker = MRUTracker()
