@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:alt-tab-macos}",
+            "name": "Debug OptionTab",
+            "target": "OptionTab",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug OptionTab"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:alt-tab-macos}",
+            "name": "Release OptionTab",
+            "target": "OptionTab",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release OptionTab"
+        }
+    ]
+}
