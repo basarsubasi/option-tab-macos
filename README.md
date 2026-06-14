@@ -2,6 +2,10 @@
 
 OptionTab is a fast and minimal window switcher that fixes the most annoying shortcomings of the default macOS Cmd+Tab switcher. No notifications, no premium only features, no update pop-ups, no bullshit.
 
+
+
+https://github.com/user-attachments/assets/e15445fc-f11c-4ba9-91eb-d68e2b91ba80
+
 ## Features
 - **Quiet by design**: No annoying notifications or pop-ups whatsoever.
 - **Free as in free beer**: This app is completely free to use and will stay free forever.
