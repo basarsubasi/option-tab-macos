@@ -17,7 +17,8 @@ struct WindowFilter {
     /// Returns windows with layer 0, excluding own app, Dock, and Desktop.
     static func filterOnScreenWindows(
         from windowList: [[String: Any]],
-        ownPID: pid_t = WindowFilter.ownPID
+        ownPID: pid_t = WindowFilter.ownPID,
+        validPIDs: Set<pid_t>? = nil
     ) -> [WindowItem] {
         windowList.compactMap { dict -> WindowItem? in
             guard let layer = dict[kCGWindowLayer as String] as? Int, layer == 0 else { return nil }
@@ -27,12 +28,16 @@ struct WindowFilter {
             // Exclude own app
             if pid == ownPID { return nil }
 
-            // Exclude Dock and Window Server
+            // Only include windows from valid PIDs (e.g. regular apps), if provided
+            if let validPIDs = validPIDs, !validPIDs.contains(pid) { return nil }
+
+            // Exclude Dock and Window Server (redundant if using validPIDs, but safe)
             guard let ownerName = dict[kCGWindowOwnerName as String] as? String else { return nil }
             if ownerName == "Dock" || ownerName == "Window Server" { return nil }
 
-            let title = dict[kCGWindowName as String] as? String ?? ""
-
+            // Get window title. If empty (often due to missing Screen Recording permission),
+            // try to fetch it via Accessibility API by matching the window's bounds.
+            var title = dict[kCGWindowName as String] as? String ?? ""
             var bounds: CGRect = .zero
             if let boundsDict = dict[kCGWindowBounds as String] as? [String: CGFloat] {
                 bounds = CGRect(
@@ -42,6 +47,16 @@ struct WindowFilter {
                     height: boundsDict["Height"] ?? 0
                 )
             }
+            
+            if title.isEmpty && bounds.width > 0 {
+                title = WindowFilter.fetchAXTitle(for: pid, matching: bounds)
+            }
+
+            // Exclude tiny windows (often transparent overlays or tooltips)
+            if bounds.width <= 50 || bounds.height <= 50 { return nil }
+
+            // Exclude windows with 0 alpha if present in dictionary
+            if let alpha = dict[kCGWindowAlpha as String] as? CGFloat, alpha <= 0.0 { return nil }
 
             let appIcon = NSRunningApplication(processIdentifier: pid)?.icon
 
@@ -94,5 +109,42 @@ struct WindowFilter {
             // Without Accessibility, only on-screen windows are visible
             return windows.filter { !$0.isMinimized }
         }
+    }
+
+    /// Fetches the window title using Accessibility API, matching the window by its bounds.
+    /// This bypasses the need for Screen Recording permissions which restrict CGWindowList names.
+    private static func fetchAXTitle(for pid: pid_t, matching bounds: CGRect) -> String {
+        let appElement = AXUIElementCreateApplication(pid)
+        var windowsValue: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsValue)
+        guard result == .success, let axWindows = windowsValue as? [AXUIElement] else { return "" }
+
+        for axWindow in axWindows {
+            var positionValue: CFTypeRef?
+            var sizeValue: CFTypeRef?
+            
+            if AXUIElementCopyAttributeValue(axWindow, kAXPositionAttribute as CFString, &positionValue) == .success,
+               AXUIElementCopyAttributeValue(axWindow, kAXSizeAttribute as CFString, &sizeValue) == .success {
+                
+                var point = CGPoint.zero
+                var cgSize = CGSize.zero
+                if let posVal = positionValue, let sizeVal = sizeValue,
+                   AXValueGetValue(posVal as! AXValue, .cgPoint, &point),
+                   AXValueGetValue(sizeVal as! AXValue, .cgSize, &cgSize) {
+                    
+                    let axBounds = CGRect(origin: point, size: cgSize)
+                    // If bounds match within 1 pixel tolerance
+                    if abs(axBounds.minX - bounds.minX) < 1 && abs(axBounds.minY - bounds.minY) < 1 &&
+                       abs(axBounds.width - bounds.width) < 1 && abs(axBounds.height - bounds.height) < 1 {
+                        
+                        var titleValue: CFTypeRef?
+                        if AXUIElementCopyAttributeValue(axWindow, kAXTitleAttribute as CFString, &titleValue) == .success {
+                            return titleValue as? String ?? ""
+                        }
+                    }
+                }
+            }
+        }
+        return ""
     }
 }

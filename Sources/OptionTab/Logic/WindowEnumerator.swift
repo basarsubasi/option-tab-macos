@@ -31,7 +31,11 @@ final class WindowEnumerator: @unchecked Sendable {
         guard let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
             return []
         }
-        return WindowFilter.filterOnScreenWindows(from: windowList)
+
+        let regularApps = NSWorkspace.shared.runningApplications.filter { $0.activationPolicy == .regular }
+        let validPIDs = Set(regularApps.map { $0.processIdentifier })
+
+        return WindowFilter.filterOnScreenWindows(from: windowList, validPIDs: validPIDs)
     }
 
     /// Enumerate minimized windows by querying each running app's AXUIElement.

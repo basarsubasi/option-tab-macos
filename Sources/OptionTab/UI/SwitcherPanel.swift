@@ -7,6 +7,7 @@ final class SwitcherPanel: NSPanel {
     private var selectedIndex = 0
     private var iconViews: [NSImageView] = []
     private let mainStackView = NSStackView()
+    private let scrollView = NSScrollView()
     private let iconStackView = NSStackView()
     private let titleLabel = NSTextField(labelWithString: "")
 
@@ -60,7 +61,11 @@ final class SwitcherPanel: NSPanel {
         // Position centered on screen
         if let screen = NSScreen.main {
             let frame = screen.visibleFrame
-            let panelWidth = max(300, CGFloat(windows.count) * (iconSize + iconPadding * 2) + panelPadding * 2)
+            // Calculate width, clamp to screen width minus padding
+            let desiredWidth = CGFloat(windows.count) * (iconSize + iconPadding * 2) + panelPadding * 2
+            let maxWidth = frame.width - 100
+            let panelWidth = min(maxWidth, max(300, desiredWidth))
+            
             let panelHeight = iconSize + iconPadding * 2 + panelPadding * 2 + 30 // Extra 30 for title label
             let x = frame.midX - panelWidth / 2
             let y = frame.midY - panelHeight / 2
@@ -115,13 +120,25 @@ final class SwitcherPanel: NSPanel {
         iconStackView.alignment = .centerY
         iconStackView.spacing = iconPadding
 
+        scrollView.hasVerticalScroller = false
+        scrollView.hasHorizontalScroller = false // Hidden but scrollable
+        scrollView.autohidesScrollers = true
+        scrollView.drawsBackground = false
+        scrollView.documentView = iconStackView
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Ensure scrollView height is exactly the height of the icon stack
+        NSLayoutConstraint.activate([
+            scrollView.heightAnchor.constraint(equalToConstant: iconSize + iconPadding * 2)
+        ])
+
         titleLabel.textColor = .labelColor
         titleLabel.font = .systemFont(ofSize: 14, weight: .medium)
         titleLabel.alignment = .center
         titleLabel.lineBreakMode = .byTruncatingTail
         titleLabel.maximumNumberOfLines = 1
 
-        mainStackView.addArrangedSubview(iconStackView)
+        mainStackView.addArrangedSubview(scrollView)
         mainStackView.addArrangedSubview(titleLabel)
 
         // Container with rounded background
@@ -194,6 +211,9 @@ final class SwitcherPanel: NSPanel {
                 wrapper.layer?.borderColor = highlightColor.cgColor
                 wrapper.layer?.borderWidth = highlightBorderWidth
                 wrapper.layer?.backgroundColor = highlightColor.withAlphaComponent(0.1).cgColor
+                
+                // Ensure the selected icon is visible in the scroll view
+                wrapper.scrollToVisible(wrapper.bounds)
             } else {
                 wrapper.layer?.borderColor = NSColor.separatorColor.cgColor
                 wrapper.layer?.borderWidth = 1
