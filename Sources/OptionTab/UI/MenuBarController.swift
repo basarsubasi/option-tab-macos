@@ -14,8 +14,9 @@ final class MenuBarController: NSObject {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "switch.2", accessibilityDescription: "OptionTab")
-            button.image?.size = NSSize(width: 18, height: 18)
+            let appIcon = NSImage(named: NSImage.applicationIconName)
+            appIcon?.size = NSSize(width: 18, height: 18)
+            button.image = appIcon
         }
 
         let menu = NSMenu()
