@@ -12,6 +12,7 @@ final class SwitcherPanel: NSPanel {
     private let titleLabel = NSTextField(labelWithString: "")
     
     var onCloseWindow: ((WindowItem) -> Void)?
+    var onSelectWindow: ((WindowItem) -> Void)?
     
     private let maxColumns = 8
 
@@ -219,6 +220,18 @@ final class SwitcherPanel: NSPanel {
             wrapper.onClose = { [weak self] item in
                 self?.onCloseWindow?(item)
             }
+            wrapper.onClick = { [weak self] item in
+                self?.onSelectWindow?(item)
+            }
+            wrapper.onHover = { [weak self] item in
+                guard let self = self else { return }
+                if let index = self.windows.firstIndex(where: { $0.id == item.id }) {
+                    if self.selectedIndex != index {
+                        self.selectedIndex = index
+                        self.updateHighlight()
+                    }
+                }
+            }
             wrapper.wantsLayer = true
             wrapper.layer?.cornerRadius = 12
             // We set masksToBounds false so the close button can slightly overlap the border if we wanted,
@@ -321,6 +334,8 @@ private class HoverWrapperView: NSView {
     var closeButton: NSButton!
     var windowItem: WindowItem!
     var onClose: ((WindowItem) -> Void)?
+    var onClick: ((WindowItem) -> Void)?
+    var onHover: ((WindowItem) -> Void)?
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -334,6 +349,7 @@ private class HoverWrapperView: NSView {
             context.duration = 0.1
             closeButton.animator().alphaValue = 1.0
         }
+        onHover?(windowItem)
     }
 
     override func mouseExited(with event: NSEvent) {
@@ -341,6 +357,10 @@ private class HoverWrapperView: NSView {
             context.duration = 0.1
             closeButton.animator().alphaValue = 0.0
         }
+    }
+    
+    override func mouseDown(with event: NSEvent) {
+        onClick?(windowItem)
     }
     
     @objc func closeClicked() {

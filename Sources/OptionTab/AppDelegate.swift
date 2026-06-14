@@ -44,6 +44,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.switcherPanel?.removeWindow(withId: window.id)
             }
         }
+        
+        panel.onSelectWindow = { [weak self] window in
+            Task { @MainActor in
+                self?.hotkeyManager?.forceDeactivate()
+                self?.activateWindow(window)
+            }
+        }
 
         let hotkey = HotkeyManager()
         hotkeyManager = hotkey

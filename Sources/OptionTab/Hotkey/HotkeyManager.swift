@@ -133,6 +133,14 @@ final class HotkeyManager: @unchecked Sendable {
         installEventTap()
     }
 
+    /// Force the manager to deactivate (e.g. when a window is selected via mouse click).
+    func forceDeactivate() {
+        if isActive {
+            isActive = false
+            modifierPressed = false
+        }
+    }
+
     // MARK: - Private
 
     private func installEventTap() {
