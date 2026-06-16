@@ -4,7 +4,7 @@ OptionTab is a fast and minimal window switcher that fixes the most annoying sho
 
 
 
-https://github.com/user-attachments/assets/e15445fc-f11c-4ba9-91eb-d68e2b91ba80
+https://github.com/user-attachments/assets/44568e4d-4951-4563-97c1-3fc9ad3c3a51
 
 ## Features
 - **Quiet by design**: No annoying notifications or pop-ups whatsoever.
