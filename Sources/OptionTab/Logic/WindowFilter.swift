@@ -49,7 +49,7 @@ struct WindowFilter {
             }
             
             if title.isEmpty && bounds.width > 0 {
-                title = WindowFilter.fetchAXTitle(for: pid, matching: bounds)
+                title = WindowFilter.fetchAXTitle(for: pid, windowID: windowID, matching: bounds)
             }
 
             // Exclude tiny windows (often transparent overlays or tooltips)
@@ -111,14 +111,27 @@ struct WindowFilter {
         }
     }
 
-    /// Fetches the window title using Accessibility API, matching the window by its bounds.
+    /// Fetches the window title using Accessibility API.
+    /// Uses CGWindowID for perfect matching, with bounds as a fallback.
     /// This bypasses the need for Screen Recording permissions which restrict CGWindowList names.
-    private static func fetchAXTitle(for pid: pid_t, matching bounds: CGRect) -> String {
+    private static func fetchAXTitle(for pid: pid_t, windowID: CGWindowID, matching bounds: CGRect) -> String {
         let appElement = AXUIElementCreateApplication(pid)
         var windowsValue: CFTypeRef?
         let result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsValue)
         guard result == .success, let axWindows = windowsValue as? [AXUIElement] else { return "" }
 
+        // 1. Try robust matching by CGWindowID
+        for axWindow in axWindows {
+            var axID: CGWindowID = 0
+            if _AXUIElementGetWindow(axWindow, &axID) == .success, axID == windowID {
+                var titleValue: CFTypeRef?
+                if AXUIElementCopyAttributeValue(axWindow, kAXTitleAttribute as CFString, &titleValue) == .success {
+                    return titleValue as? String ?? ""
+                }
+            }
+        }
+
+        // 2. Fallback to bounds matching
         for axWindow in axWindows {
             var positionValue: CFTypeRef?
             var sizeValue: CFTypeRef?

@@ -145,41 +145,9 @@ private func focusCallback(
     )
 
     if windowResult == .success, let axWindow = windowValue {
-        // Try to get a CGWindowID by matching against the window list
-        // Use PID-based matching since we can't directly extract CGWindowID from AXUIElement
-        var pidValue: pid_t = 0
-        let pidResult = AXUIElementGetPid(element, &pidValue)
-
-        if pidResult == .success {
-            // Look up the window by title in CGWindowListCopyWindowInfo
-            var titleValue: CFTypeRef?
-            AXUIElementCopyAttributeValue(axWindow as! AXUIElement, kAXTitleAttribute as CFString, &titleValue)
-            let title = (titleValue as? String) ?? ""
-
-            let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-            if let windowList = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] {
-                for dict in windowList {
-                    if let winPID = dict[kCGWindowOwnerPID as String] as? pid_t,
-                       winPID == pidValue,
-                       let winID = dict[kCGWindowNumber as String] as? CGWindowID {
-                        // Found a matching window
-                        if title.isEmpty || (dict[kCGWindowName as String] as? String) == title {
-                            tracker.updateFocus(windowID: winID)
-                            return
-                        }
-                    }
-                }
-                // If no title match, update focus for the first window of this PID
-                for dict in windowList {
-                    if let winPID = dict[kCGWindowOwnerPID as String] as? pid_t,
-                       winPID == pidValue,
-                       let winID = dict[kCGWindowNumber as String] as? CGWindowID,
-                       (dict[kCGWindowLayer as String] as? Int) == 0 {
-                        tracker.updateFocus(windowID: winID)
-                        return
-                    }
-                }
-            }
+        var winID: CGWindowID = 0
+        if _AXUIElementGetWindow(axWindow as! AXUIElement, &winID) == .success {
+            tracker.updateFocus(windowID: winID)
         }
     }
 }

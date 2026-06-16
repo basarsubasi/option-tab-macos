@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // State to handle fast hotkey presses during enumeration
     private var isEnumerating = false
     private var pendingCycleSteps = 0
+    private var currentMode: HotkeyManager.SwitcherMode = .allApps
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSLog("[OptionTab] App launched")
@@ -64,10 +65,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuBarController = menuBar
 
         // Wire up hotkey → switcher panel
-        hotkey.onActivate = { [weak self] in
+        hotkey.onActivate = { [weak self] mode in
             Task { @MainActor in
                 self?.isEnumerating = true
                 self?.pendingCycleSteps = 0
+                self?.currentMode = mode
                 self?.showSwitcher()
             }
         }
@@ -151,12 +153,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // Sort live windows by MRU: windows seen in tracker come first (by their tracked order),
                 // new windows (not yet tracked) are appended at the end.
                 let mruIDs = mruOrder.map(\.id)
-                let sorted = liveWindows.sorted { a, b in
+                var sorted = liveWindows.sorted { a, b in
                     let ai = mruIDs.firstIndex(of: a.id) ?? Int.max
                     let bi = mruIDs.firstIndex(of: b.id) ?? Int.max
                     // Important: if both are Int.max (unknown to MRU tracker), keep their original Z-order (front-to-back)
                     if ai == Int.max && bi == Int.max { return false }
                     return ai < bi
+                }
+
+                if self.currentMode == .currentApp, let frontmostAppPID = NSWorkspace.shared.frontmostApplication?.processIdentifier {
+                    sorted = sorted.filter { $0.pid == frontmostAppPID }
                 }
 
                 self.switcherPanel?.show(with: sorted)
