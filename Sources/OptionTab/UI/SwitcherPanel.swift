@@ -50,6 +50,10 @@ final class SwitcherPanel: NSPanel {
 
     /// Show the panel with the given windows, starting selection at index 1 (second-most-recent).
     func show(with windows: [WindowItem]) {
+        // Re-apply colors to ensure they adapt to theme changes if layer-backed
+        appNameLabel.textColor = .labelColor
+        windowTitleLabel.textColor = .secondaryLabelColor
+
         self.windows = windows
         self.selectedIndex = windows.count > 1 ? 1 : 0
 
@@ -170,7 +174,7 @@ final class SwitcherPanel: NSPanel {
         appNameLabel.maximumNumberOfLines = 1
         appNameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        windowTitleLabel.textColor = NSColor.labelColor.withAlphaComponent(0.85)
+        windowTitleLabel.textColor = .secondaryLabelColor.withAlphaComponent(0.85)
         windowTitleLabel.font = .systemFont(ofSize: 14, weight: .medium)
         windowTitleLabel.alignment = .center
         windowTitleLabel.lineBreakMode = .byTruncatingTail
@@ -352,7 +356,7 @@ private class HoverWrapperView: NSView {
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         trackingAreas.forEach { removeTrackingArea($0) }
-        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self, userInfo: nil)
+        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways], owner: self, userInfo: nil)
         addTrackingArea(area)
     }
 
@@ -361,6 +365,9 @@ private class HoverWrapperView: NSView {
             context.duration = 0.1
             closeButton.animator().alphaValue = 1.0
         }
+    }
+
+    override func mouseMoved(with event: NSEvent) {
         onHover?(windowItem)
     }
 
