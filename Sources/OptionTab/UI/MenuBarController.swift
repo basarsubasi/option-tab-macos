@@ -22,26 +22,45 @@ final class MenuBarController: NSObject {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        // Shortcut display
+        // Main Shortcut display
         let shortcutItem = NSMenuItem(
-            title: "Shortcut: \(hotkeyManager.shortcut.displayString)",
+            title: "Main Shortcut: \(hotkeyManager.shortcut.displayString)",
             action: nil,
             keyEquivalent: ""
         )
         shortcutItem.isEnabled = false
         menu.addItem(shortcutItem)
 
+        // Current App Shortcut display
+        let currentAppShortcutItem = NSMenuItem(
+            title: "Current App Shortcut: \(hotkeyManager.currentAppShortcut.displayString)",
+            action: nil,
+            keyEquivalent: ""
+        )
+        currentAppShortcutItem.isEnabled = false
+        menu.addItem(currentAppShortcutItem)
+
         menu.addItem(NSMenuItem.separator())
 
-        // Change Shortcut
+        // Change Main Shortcut
         let changeShortcutItem = NSMenuItem(
-            title: "Change Shortcut\u{2026}",
+            title: "Change Main Shortcut\u{2026}",
             action: #selector(changeShortcut),
             keyEquivalent: ""
         )
         changeShortcutItem.target = self
         changeShortcutItem.isEnabled = true
         menu.addItem(changeShortcutItem)
+
+        // Change Current App Shortcut
+        let changeCurrentAppShortcutItem = NSMenuItem(
+            title: "Change Current App Shortcut\u{2026}",
+            action: #selector(changeCurrentAppShortcut),
+            keyEquivalent: ""
+        )
+        changeCurrentAppShortcutItem.target = self
+        changeCurrentAppShortcutItem.isEnabled = true
+        menu.addItem(changeCurrentAppShortcutItem)
 
         menu.addItem(NSMenuItem.separator())
         
@@ -101,8 +120,8 @@ final class MenuBarController: NSObject {
 
     @objc private func changeShortcut() {
         let alert = NSAlert()
-        alert.messageText = "Change Shortcut"
-        alert.informativeText = "Press the new key combination to set as the switcher shortcut.\nCurrent shortcut: \(hotkeyManager?.shortcut.displayString ?? "Opt+Tab")"
+        alert.messageText = "Change Main Shortcut"
+        alert.informativeText = "Press the new key combination to set as the main switcher shortcut.\nCurrent shortcut: \(hotkeyManager?.shortcut.displayString ?? "Opt+Tab")"
         alert.alertStyle = .informational
         
         alert.addButton(withTitle: "Apply")
@@ -117,8 +136,32 @@ final class MenuBarController: NSObject {
         if response == .alertFirstButtonReturn, let newShortcut = shortcutRecorder.recordedShortcut {
             self.hotkeyManager?.updateShortcut(newShortcut)
             // Update menu item title
-            if let menuItem = self.statusItem.menu?.items.first {
-                menuItem.title = "Shortcut: \(newShortcut.displayString)"
+            if let menuItem = self.statusItem.menu?.items.first(where: { $0.title.starts(with: "Main Shortcut:") }) {
+                menuItem.title = "Main Shortcut: \(newShortcut.displayString)"
+            }
+        }
+    }
+
+    @objc private func changeCurrentAppShortcut() {
+        let alert = NSAlert()
+        alert.messageText = "Change Current App Shortcut"
+        alert.informativeText = "Press the new key combination to set as the current app switcher shortcut.\nCurrent shortcut: \(hotkeyManager?.currentAppShortcut.displayString ?? "Opt+Q")"
+        alert.alertStyle = .informational
+        
+        alert.addButton(withTitle: "Apply")
+        alert.addButton(withTitle: "Cancel")
+
+        // Create a custom view that captures key presses
+        let shortcutRecorder = ShortcutRecorderView()
+        alert.accessoryView = shortcutRecorder
+
+        let response = alert.runModal()
+        
+        if response == .alertFirstButtonReturn, let newShortcut = shortcutRecorder.recordedShortcut {
+            self.hotkeyManager?.updateCurrentAppShortcut(newShortcut)
+            // Update menu item title
+            if let menuItem = self.statusItem.menu?.items.first(where: { $0.title.starts(with: "Current App Shortcut:") }) {
+                menuItem.title = "Current App Shortcut: \(newShortcut.displayString)"
             }
         }
     }

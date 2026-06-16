@@ -1,6 +1,10 @@
 @preconcurrency import AppKit
 @preconcurrency import ApplicationServices
 
+@_silgen_name("_AXUIElementGetWindow")
+@discardableResult
+func _AXUIElementGetWindow(_ element: AXUIElement, _ id: inout CGWindowID) -> AXError
+
 /// Activates a window: unminimizes if needed, raises, and focuses the owning app.
 enum WindowActivator {
     /// Activate the given window.
@@ -45,7 +49,7 @@ enum WindowActivator {
 
         guard let axWindows = windowsValue as? [AXUIElement] else { return }
 
-        // Find the matching window by title
+        // Find the matching window robustly by its CGWindowID
         for axWindow in axWindows {
             var isMinimizedValue: CFTypeRef?
             let minimizedResult = AXUIElementCopyAttributeValue(
@@ -58,23 +62,15 @@ enum WindowActivator {
                   let isMinimized = isMinimizedValue as? Bool,
                   isMinimized else { continue }
 
-            // Match by title if available
-            if !window.title.isEmpty {
-                var titleValue: CFTypeRef?
-                AXUIElementCopyAttributeValue(
-                    axWindow,
-                    kAXTitleAttribute as CFString,
-                    &titleValue
-                )
-                if let title = titleValue as? String, title == window.title {
-                    AXUIElementSetAttributeValue(axWindow, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
-                    AXUIElementPerformAction(axWindow, kAXRaiseAction as CFString)
-                    return
-                }
+            var axID: CGWindowID = 0
+            if _AXUIElementGetWindow(axWindow, &axID) == .success, axID == window.id {
+                AXUIElementSetAttributeValue(axWindow, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+                AXUIElementPerformAction(axWindow, kAXRaiseAction as CFString)
+                return
             }
         }
 
-        // If no title match, unminimize the first minimized window for this app
+        // If no precise match, unminimize the first minimized window for this app
         for axWindow in axWindows {
             var isMinimizedValue: CFTypeRef?
             let minimizedResult = AXUIElementCopyAttributeValue(
@@ -106,12 +102,10 @@ enum WindowActivator {
 
         guard result == .success, let axWindows = windowsValue as? [AXUIElement] else { return }
 
-        // Try to find and raise the window by title
+        // Try to find and raise the window by its CGWindowID
         for axWindow in axWindows {
-            var titleValue: CFTypeRef?
-            AXUIElementCopyAttributeValue(axWindow, kAXTitleAttribute as CFString, &titleValue)
-
-            if let title = titleValue as? String, title == window.title {
+            var axID: CGWindowID = 0
+            if _AXUIElementGetWindow(axWindow, &axID) == .success, axID == window.id {
                 AXUIElementPerformAction(axWindow, kAXRaiseAction as CFString)
                 AXUIElementSetAttributeValue(axWindow, kAXFocusedAttribute as CFString, kCFBooleanTrue)
                 return
@@ -132,18 +126,16 @@ enum WindowActivator {
 
         guard result == .success, let axWindows = windowsValue as? [AXUIElement] else { return }
 
-        // Find window by title and close it
+        // Find window by CGWindowID and close it
         for axWindow in axWindows {
-            var titleValue: CFTypeRef?
-            AXUIElementCopyAttributeValue(axWindow, kAXTitleAttribute as CFString, &titleValue)
-
-            if let title = titleValue as? String, title == window.title {
+            var axID: CGWindowID = 0
+            if _AXUIElementGetWindow(axWindow, &axID) == .success, axID == window.id {
                 clickCloseButton(of: axWindow)
                 return
             }
         }
         
-        // Fallback: if no title match (e.g. empty title), close the first window
+        // Fallback: if no match, close the first window
         if let first = axWindows.first {
             clickCloseButton(of: first)
         }

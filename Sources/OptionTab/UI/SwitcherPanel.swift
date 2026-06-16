@@ -9,7 +9,8 @@ final class SwitcherPanel: NSPanel {
     private var wrapperViews: [NSView] = [] // Track wrappers for highlighting
     private let mainStackView = NSStackView()
     private let gridStackView = NSStackView() // Vertical stack for rows
-    private let titleLabel = NSTextField(labelWithString: "")
+    private let appNameLabel = NSTextField(labelWithString: "")
+    private let windowTitleLabel = NSTextField(labelWithString: "")
     
     var onCloseWindow: ((WindowItem) -> Void)?
     var onSelectWindow: ((WindowItem) -> Void)?
@@ -56,7 +57,8 @@ final class SwitcherPanel: NSPanel {
 
         guard !windows.isEmpty else {
             // Show empty state
-            titleLabel.stringValue = "No windows"
+            appNameLabel.stringValue = "No windows"
+            windowTitleLabel.stringValue = ""
             gridStackView.subviews.forEach { $0.removeFromSuperview() }
             return
         }
@@ -74,7 +76,7 @@ final class SwitcherPanel: NSPanel {
             let gridHeight = CGFloat(rows) * iconSize + CGFloat(max(0, rows - 1)) * iconPadding
             
             let panelWidth = max(300, gridWidth + panelPadding * 2)
-            let panelHeight = gridHeight + panelPadding * 2 + 36 // Extra 36 for title label
+            let panelHeight = gridHeight + panelPadding * 2 + 56 // Extra space for two labels
             
             let x = frame.midX - panelWidth / 2
             let y = frame.midY - panelHeight / 2
@@ -114,7 +116,7 @@ final class SwitcherPanel: NSPanel {
                     let gridHeight = CGFloat(rows) * iconSize + CGFloat(max(0, rows - 1)) * iconPadding
                     
                     let panelWidth = max(300, gridWidth + panelPadding * 2)
-                    let panelHeight = gridHeight + panelPadding * 2 + 36
+                    let panelHeight = gridHeight + panelPadding * 2 + 56
                     
                     let x = frame.midX - panelWidth / 2
                     let y = frame.midY - panelHeight / 2
@@ -161,15 +163,25 @@ final class SwitcherPanel: NSPanel {
         gridStackView.alignment = .centerX
         gridStackView.spacing = iconPadding
 
-        titleLabel.textColor = .labelColor
-        titleLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        titleLabel.alignment = .center
-        titleLabel.lineBreakMode = .byTruncatingTail
-        titleLabel.maximumNumberOfLines = 1
-        titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        appNameLabel.textColor = .labelColor
+        appNameLabel.font = .systemFont(ofSize: 16, weight: .bold)
+        appNameLabel.alignment = .center
+        appNameLabel.lineBreakMode = .byTruncatingTail
+        appNameLabel.maximumNumberOfLines = 1
+        appNameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        windowTitleLabel.textColor = NSColor.labelColor.withAlphaComponent(0.85)
+        windowTitleLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        windowTitleLabel.alignment = .center
+        windowTitleLabel.lineBreakMode = .byTruncatingTail
+        windowTitleLabel.maximumNumberOfLines = 1
+        windowTitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         mainStackView.addArrangedSubview(gridStackView)
-        mainStackView.addArrangedSubview(titleLabel)
+        mainStackView.setCustomSpacing(12, after: gridStackView)
+        mainStackView.addArrangedSubview(appNameLabel)
+        mainStackView.setCustomSpacing(2, after: appNameLabel)
+        mainStackView.addArrangedSubview(windowTitleLabel)
 
         // Container with rounded blurred background (NSVisualEffectView handles themes automatically)
         let containerView = NSVisualEffectView()
@@ -306,13 +318,13 @@ final class SwitcherPanel: NSPanel {
         }
         
         if let selected = selectedWindow {
-            if selected.title.isEmpty {
-                titleLabel.stringValue = selected.appName
-            } else {
-                titleLabel.stringValue = "\(selected.appName) - \(selected.title)"
-            }
+            appNameLabel.stringValue = selected.appName
+            windowTitleLabel.stringValue = selected.title
+            windowTitleLabel.isHidden = selected.title.isEmpty
         } else {
-            titleLabel.stringValue = ""
+            appNameLabel.stringValue = ""
+            windowTitleLabel.stringValue = ""
+            windowTitleLabel.isHidden = true
         }
     }
 

@@ -8,12 +8,22 @@ import Carbon
 final class HotkeyManager: @unchecked Sendable {
     // MARK: - Types
 
+    enum SwitcherMode: Sendable {
+        case allApps
+        case currentApp
+    }
+
     struct Shortcut: Codable, Equatable, Sendable {
         let keyCode: UInt32
         let modifierFlags: UInt32
 
         static let defaultShortcut = Shortcut(
             keyCode: UInt32(kVK_Tab),
+            modifierFlags: UInt32(optionKey)
+        )
+
+        static let defaultCurrentAppShortcut = Shortcut(
+            keyCode: UInt32(kVK_ANSI_Q),
             modifierFlags: UInt32(optionKey)
         )
 
@@ -44,6 +54,8 @@ final class HotkeyManager: @unchecked Sendable {
             case UInt16(kVK_RightArrow): return "\u{2192}"  // →
             case UInt16(kVK_UpArrow): return "\u{2191}"    // ↑
             case UInt16(kVK_DownArrow): return "\u{2193}"  // ↓
+            case UInt16(kVK_ANSI_Quote): return "\""
+            case UInt16(kVK_ANSI_Grave): return "`"
             default:
                 if let char = keyCodeToChar(keyCode) { return String(char).uppercased() }
                 return "Key\(keyCode)"
@@ -70,7 +82,7 @@ final class HotkeyManager: @unchecked Sendable {
 
     // MARK: - Callbacks
 
-    var onActivate: (@Sendable () -> Void)?
+    var onActivate: (@Sendable (SwitcherMode) -> Void)?
     var onCycle: (@Sendable (Bool) -> Void)?
     var onDeactivate: (@Sendable (WindowItem?) -> Void)?
     var onCancel: (@Sendable () -> Void)?
@@ -80,18 +92,29 @@ final class HotkeyManager: @unchecked Sendable {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private(set) var shortcut: Shortcut
+    private(set) var currentAppShortcut: Shortcut
     fileprivate var isActive = false
+    fileprivate var currentMode: SwitcherMode = .allApps
+    fileprivate var activeShortcut: Shortcut?
     fileprivate var modifierPressed = false
 
     private static let shortcutKey = "HotkeyManager.shortcut"
+    private static let currentAppShortcutKey = "HotkeyManager.currentAppShortcut"
 
     init() {
-        // Load saved shortcut or use default
+        // Load saved shortcuts or use defaults
         if let data = UserDefaults.standard.data(forKey: Self.shortcutKey),
            let saved = try? JSONDecoder().decode(Shortcut.self, from: data) {
             self.shortcut = saved
         } else {
             self.shortcut = .defaultShortcut
+        }
+
+        if let data = UserDefaults.standard.data(forKey: Self.currentAppShortcutKey),
+           let saved = try? JSONDecoder().decode(Shortcut.self, from: data) {
+            self.currentAppShortcut = saved
+        } else {
+            self.currentAppShortcut = .defaultCurrentAppShortcut
         }
     }
 
@@ -133,11 +156,23 @@ final class HotkeyManager: @unchecked Sendable {
         installEventTap()
     }
 
+    /// Update the current app shortcut configuration.
+    func updateCurrentAppShortcut(_ newShortcut: Shortcut) {
+        currentAppShortcut = newShortcut
+        if let encoded = try? JSONEncoder().encode(newShortcut) {
+            UserDefaults.standard.set(encoded, forKey: Self.currentAppShortcutKey)
+        }
+        // Reinstall event tap with new shortcut
+        removeEventTap()
+        installEventTap()
+    }
+
     /// Force the manager to deactivate (e.g. when a window is selected via mouse click).
     func forceDeactivate() {
         if isActive {
             isActive = false
             modifierPressed = false
+            activeShortcut = nil
         }
     }
 
@@ -221,14 +256,19 @@ private func hotkeyEventCallback(
         let keyCode = UInt32(event.getIntegerValueField(.keyboardEventKeycode))
         let flags = event.flags
 
-        if keyCode == manager.shortcut.keyCode && manager.hasRequiredModifier(flags) {
+        let matchesMain = keyCode == manager.shortcut.keyCode && manager.hasRequiredModifier(flags, for: manager.shortcut)
+        let matchesCurrentApp = keyCode == manager.currentAppShortcut.keyCode && manager.hasRequiredModifier(flags, for: manager.currentAppShortcut)
+
+        if matchesMain || matchesCurrentApp {
             let isShiftPressed = flags.contains(.maskShift)
             let forward = !isShiftPressed
 
             if !manager.isActive {
                 manager.isActive = true
-                NSLog("[OptionTab] Shortcut detected — activating switcher")
-                manager.onActivate?()
+                manager.currentMode = matchesMain ? .allApps : .currentApp
+                manager.activeShortcut = matchesMain ? manager.shortcut : manager.currentAppShortcut
+                NSLog("[OptionTab] Shortcut detected — activating switcher in mode: \(manager.currentMode)")
+                manager.onActivate?(manager.currentMode)
             } else {
                 manager.onCycle?(forward)
             }
@@ -247,11 +287,13 @@ private func hotkeyEventCallback(
             } else if key == UInt16(kVK_Return) || key == UInt16(kVK_Space) {
                 manager.isActive = false
                 manager.modifierPressed = false
+                manager.activeShortcut = nil
                 manager.onDeactivate?(nil)
                 return nil
             } else if key == UInt16(kVK_Escape) {
                 manager.isActive = false
                 manager.modifierPressed = false
+                manager.activeShortcut = nil
                 manager.onCancel?()
                 return nil
             }
@@ -261,18 +303,19 @@ private func hotkeyEventCallback(
         let flags = event.flags
 
         // If the modifier is released while switcher is active, deactivate
-        if manager.isActive && !manager.hasRequiredModifier(flags) {
+        if manager.isActive, let activeShortcut = manager.activeShortcut, !manager.hasRequiredModifier(flags, for: activeShortcut) {
             manager.isActive = false
             manager.modifierPressed = false
+            manager.activeShortcut = nil
             NSLog("[OptionTab] Modifier released — deactivating switcher")
             manager.onDeactivate?(nil)
         }
 
-        if manager.isActive && manager.hasRequiredModifier(flags) && !manager.modifierPressed {
+        if manager.isActive, let activeShortcut = manager.activeShortcut, manager.hasRequiredModifier(flags, for: activeShortcut) && !manager.modifierPressed {
             manager.modifierPressed = true
         }
 
-        if !manager.hasRequiredModifier(flags) {
+        if manager.isActive, let activeShortcut = manager.activeShortcut, !manager.hasRequiredModifier(flags, for: activeShortcut) {
             manager.modifierPressed = false
         }
 
@@ -289,7 +332,7 @@ extension HotkeyManager {
     /// Convert the Shortcut's Carbon modifier flags to CGEventFlags for comparison
     /// against CGEvent.flags. Carbon flags (e.g. optionKey=2048) are completely
     /// different values from CGEventFlags (maskAlternate=524288).
-    func hasRequiredModifier(_ flags: CGEventFlags) -> Bool {
+    func hasRequiredModifier(_ flags: CGEventFlags, for shortcut: Shortcut) -> Bool {
         var required: CGEventFlags = []
         if shortcut.modifierFlags & UInt32(cmdKey)     != 0 { required.insert(.maskCommand) }
         if shortcut.modifierFlags & UInt32(optionKey)  != 0 { required.insert(.maskAlternate) }
