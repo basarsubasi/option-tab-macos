@@ -41,7 +41,7 @@ final class WindowEnumerator: @unchecked Sendable {
     /// Enumerate minimized windows by querying each running app's AXUIElement.
     private func enumerateMinimized() -> [WindowItem] {
         var minimizedWindows: [WindowItem] = []
-        let runningApps = NSWorkspace.shared.runningApplications
+        let runningApps = NSWorkspace.shared.runningApplications.filter { $0.activationPolicy == .regular }
 
         for app in runningApps {
             guard app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { continue }
